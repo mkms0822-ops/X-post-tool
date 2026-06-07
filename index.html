@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>防災X投稿ジェネレーター</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI','Noto Sans JP',Hiragino Sans,sans-serif;background:#f5f5f3;color:#1a1a1a;min-height:100vh;font-size:14px;line-height:1.5;}
+.wrap{max-width:900px;margin:0 auto;padding:24px 20px 60px;}
+.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;}
+.title-block h1{font-size:20px;font-weight:600;color:#1a1a1a;margin-bottom:3px;}
+.title-block p{font-size:13px;color:#666;}
+.api-row{display:flex;align-items:center;gap:8px;}
+.api-row label{font-size:12px;color:#666;white-space:nowrap;}
+.api-row input{width:240px;font-size:12px;padding:7px 11px;border:1px solid #ddd;border-radius:8px;outline:none;background:#fff;transition:border-color .2s;}
+.api-row input:focus{border-color:#378ADD;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+@media(max-width:600px){.grid{grid-template-columns:1fr;}}
+.card{background:#fff;border:1px solid #e8e8e5;border-radius:12px;overflow:hidden;}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #e8e8e5;background:#fafaf8;}
+.card-head-left{display:flex;align-items:center;gap:8px;}
+.card-label{font-size:11px;font-weight:600;color:#555;letter-spacing:0.04em;}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.dot-red{background:#E24B4A;}.dot-amber{background:#EF9F27;}.dot-blue{background:#378ADD;}
+.card-body{padding:12px 14px;}
+.list{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;}
+.list::-webkit-scrollbar{width:3px;}
+.list::-webkit-scrollbar-thumb{background:#ddd;border-radius:2px;}
+.item{padding:10px 12px;border:1px solid #e8e8e5;border-radius:8px;cursor:pointer;transition:all .15s;position:relative;background:#fff;}
+.item:hover{border-color:#aaa;background:#fafaf8;}
+.item.sel{border-color:#378ADD;background:#EBF4FC;}
+.item.sel::after{content:"✓";position:absolute;top:8px;right:10px;font-size:11px;color:#378ADD;font-weight:700;}
+.item-type{font-size:10px;color:#999;margin-bottom:3px;letter-spacing:0.06em;}
+.item-name{font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:3px;}
+.item-meta{font-size:11px;color:#777;}
+.mag{font-size:18px;font-weight:700;margin-bottom:2px;}
+.mag-hi{color:#E24B4A;}.mag-md{color:#EF9F27;}.mag-lo{color:#378ADD;}
+.badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
+.badge{padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;}
+.badge-r{background:#FCEBEB;color:#A32D2D;border:1px solid #F7C1C1;}
+.badge-o{background:#FAEEDA;color:#854F0B;border:1px solid #FAC775;}
+.badge-y{background:#f5f5f0;color:#666;border:1px solid #ddd;}
+.empty-state{text-align:center;padding:32px 16px;font-size:12px;color:#aaa;}
+.err-msg{font-size:11px;color:#A32D2D;padding:8px 12px;background:#FCEBEB;border-radius:8px;margin-top:8px;line-height:1.6;border:1px solid #F7C1C1;}
+.demo-btn{margin-top:8px;width:100%;padding:7px;font-size:11px;border-radius:8px;background:#fafaf8;border:1px solid #ddd;color:#555;cursor:pointer;}
+.warn-input-row{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;}
+.warn-input-row input{flex:1;min-width:100px;font-size:12px;padding:6px 10px;border:1px solid #ddd;border-radius:8px;outline:none;font-family:inherit;}
+.warn-input-row input:focus{border-color:#378ADD;}
+.warn-input-row select{font-size:12px;padding:6px 8px;border:1px solid #ddd;border-radius:8px;outline:none;background:#fff;font-family:inherit;cursor:pointer;}
+.del-btn{position:absolute;top:8px;right:10px;font-size:10px;color:#aaa;background:none;border:none;cursor:pointer;padding:0;}
+.del-btn:hover{color:#E24B4A;}
+.out-card{background:#fff;border:1px solid #e8e8e5;border-radius:12px;overflow:hidden;margin-bottom:12px;}
+.out-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #e8e8e5;background:#fafaf8;}
+.sel-count{font-size:11px;color:#378ADD;font-weight:600;}
+.options-wrap{padding:12px 14px;border-bottom:1px solid #e8e8e5;}
+.sep-label{font-size:11px;color:#999;margin-bottom:6px;letter-spacing:0.06em;}
+.options-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.opt-btn{padding:5px 12px;border-radius:20px;font-size:11px;font-weight:500;background:#fafaf8;border:1px solid #e8e8e5;color:#555;cursor:pointer;transition:all .15s;}
+.opt-btn.on{background:#EBF4FC;border-color:#378ADD;color:#185FA5;}
+.gen-wrap{padding:12px 14px;border-bottom:1px solid #e8e8e5;}
+.gen-btn-main{width:100%;padding:11px;font-size:13px;font-weight:600;border-radius:8px;background:#EBF4FC;border:1px solid #B5D4F4;color:#185FA5;cursor:pointer;}
+.gen-btn-main:disabled{opacity:.4;cursor:not-allowed;}
+.tabs{display:flex;gap:4px;padding:8px 14px;border-bottom:1px solid #e8e8e5;background:#fafaf8;}
+.tab-btn{padding:4px 12px;border-radius:20px;font-size:11px;cursor:pointer;background:none;border:1px solid transparent;color:#999;}
+.tab-btn.on{background:#EBF4FC;border-color:#B5D4F4;color:#185FA5;}
+.out-body{padding:14px 16px;min-height:100px;}
+.out-text{font-size:14px;line-height:1.8;color:#1a1a1a;white-space:pre-wrap;word-break:break-all;}
+.out-placeholder{font-size:12px;color:#aaa;text-align:center;padding:24px;}
+.out-footer{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-top:1px solid #e8e8e5;background:#fafaf8;}
+.char-count{font-size:11px;color:#aaa;}
+.char-count.over{color:#A32D2D;}
+.footer-btns{display:flex;gap:8px;}
+.copy-btn,.x-btn{padding:5px 12px;border-radius:20px;font-size:11px;font-weight:500;cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:4px;border:1px solid #ddd;background:#fafaf8;color:#555;}
+.copy-btn.ok{background:#EAF3DE;border-color:#C0DD97;color:#3B6D11;}
+.x-account-btn{padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:4px;background:#000;border:1px solid #000;color:#fff;}
+.x-account-btn:hover{background:#222;}
+.illust-grid{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;}
+.illust-item{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 8px;border:1.5px solid #e8e8e5;border-radius:8px;cursor:pointer;background:#fafaf8;font-size:20px;min-width:52px;transition:all .15s;}
+.illust-item span{font-size:9px;color:#777;}
+.illust-item:hover{border-color:#aaa;}
+.illust-item.on{border-color:#378ADD;background:#EBF4FC;}
+.illust-item.on span{color:#185FA5;}
+.upload-label{font-size:11px;color:#555;background:#fafaf8;border:1px solid #ddd;border-radius:8px;padding:5px 10px;cursor:pointer;display:inline-block;}
+.illust-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.illust-clear-btn{font-size:10px;padding:3px 8px;border-radius:12px;background:#fafaf8;border:1px solid #ddd;color:#999;cursor:pointer;}
+.illust-clear-btn:hover{border-color:#aaa;color:#555;}
+.upload-label:hover{border-color:#aaa;}
+.status-bar{background:#fff;border:1px solid #e8e8e5;border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px;font-size:11px;color:#777;}
+.st-dot{width:6px;height:6px;border-radius:50%;background:#63C77A;flex-shrink:0;}
+.st-dot.ld{background:#378ADD;animation:pulse .8s ease-in-out infinite;}
+.st-dot.er{background:#E24B4A;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+.spin{display:inline-block;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.cur{display:inline-block;width:2px;height:1em;background:#378ADD;margin-left:2px;vertical-align:text-bottom;animation:blink .6s step-end infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
+button{font-family:inherit;padding:5px 12px;border-radius:8px;background:#fafaf8;border:1px solid #ddd;color:#555;cursor:pointer;font-size:12px;}
+</style>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    #mapModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;}
+    #mapModal.on{display:flex;}
+    #mapBox{background:#fff;border-radius:14px;overflow:hidden;width:90%;max-width:560px;box-shadow:0 8px 32px rgba(0,0,0,.25);}
+    #mapHead{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #e8e8e5;background:#fafaf8;}
+    #mapTitle{font-size:13px;font-weight:600;color:#1a1a1a;}
+    #mapClose{font-size:18px;cursor:pointer;color:#aaa;background:none;border:none;line-height:1;padding:0;}
+    #mapClose:hover{color:#1a1a1a;}
+    #map{height:320px;width:100%;}
+    #mapInfo{padding:8px 14px;font-size:12px;color:#555;border-top:1px solid #e8e8e5;background:#fafaf8;}
+    .map-btn{font-size:10px;padding:2px 7px;border-radius:10px;background:#EBF4FC;border:1px solid #B5D4F4;color:#185FA5;cursor:pointer;margin-left:6px;vertical-align:middle;}
+    .map-btn:hover{background:#d4eaf8;}
+  </style>
+</head>
+<body>
+<div id="mapModal" onclick="if(event.target===this)closeMap()">
+  <div id="mapBox">
+    <div id="mapHead">
+      <span id="mapTitle">震源地マップ</span>
+      <button id="mapClose" onclick="closeMap()">✕</button>
+    </div>
+    <div id="map"></div>
+    <div id="mapInfo"></div>
+  </div>
+</div>
+<div class="wrap">
+  <div class="top" style="position:relative;">
+    <div class="title-block">
+      <h1>🛡 防災X投稿ジェネレーター</h1>
+      <p>地震・気象警報データをもとにAIが投稿文を生成</p>
+    </div>
+    <button onclick="resetAll()" style="font-size:11px;padding:5px 14px;border-radius:20px;background:#fff3f3;border:1px solid #f7c1c1;color:#a32d2d;cursor:pointer;">🔄 全リセット</button>
+    <div class="api-row">
+      <label for="apiKey">Anthropic API key</label>
+      <input type="password" id="apiKey" placeholder="sk-ant-api03-..." autocomplete="off">
+    </div>
+  </div>
+  <div class="grid">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-head-left"><div class="dot dot-red"></div><span class="card-label">地震情報（P2P地震情報API）</span></div>
+        <button id="qBtn" onclick="fetchQuakes()"><span id="qIco">取得</span></button>
+      </div>
+      <div class="card-body">
+        <div class="list" id="qList"><div class="empty-state">「取得」を押してください</div></div>
+        <div id="qErr"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div class="card-head-left"><div class="dot dot-amber"></div><span class="card-label">気象警報・注意報（手動入力）</span></div>
+        <button onclick="addWarning()">＋ 追加</button>
+      </div>
+      <div class="card-body">
+        <div class="warn-input-row">
+          <input id="wArea" placeholder="地域名（例：大阪府）" list="areaList">
+          <datalist id="areaList">
+            <option>北海道</option><option>青森県</option><option>岩手県</option><option>宮城県</option>
+            <option>秋田県</option><option>山形県</option><option>福島県</option><option>茨城県</option>
+            <option>栃木県</option><option>群馬県</option><option>埼玉県</option><option>千葉県</option>
+            <option>東京都</option><option>神奈川県</option><option>新潟県</option><option>富山県</option>
+            <option>石川県</option><option>福井県</option><option>山梨県</option><option>長野県</option>
+            <option>岐阜県</option><option>静岡県</option><option>愛知県</option><option>三重県</option>
+            <option>滋賀県</option><option>京都府</option><option>大阪府</option><option>兵庫県</option>
+            <option>奈良県</option><option>和歌山県</option><option>鳥取県</option><option>島根県</option>
+            <option>岡山県</option><option>広島県</option><option>山口県</option><option>徳島県</option>
+            <option>香川県</option><option>愛媛県</option><option>高知県</option><option>福岡県</option>
+            <option>佐賀県</option><option>長崎県</option><option>熊本県</option><option>大分県</option>
+            <option>宮崎県</option><option>鹿児島県</option><option>沖縄県</option>
+          </datalist>
+          <select id="wType">
+            <optgroup label="─ 警戒レベル5（緊急安全確保）">
+              <option value="緊急安全確保 警戒レベル5|r">緊急安全確保 警戒レベル5</option>
+            </optgroup>
+            <optgroup label="─ 警戒レベル4（避難指示）">
+              <option value="避難指示 警戒レベル4|r">避難指示 警戒レベル4</option>
+            </optgroup>
+            <optgroup label="─ 警戒レベル3（高齢者等避難）">
+              <option value="高齢者等避難 警戒レベル3|o">高齢者等避難 警戒レベル3</option>
+            </optgroup>
+            <optgroup label="─ 警戒レベル2（避難行動確認）">
+              <option value="洪水注意報 警戒レベル2相当|o">洪水注意報 警戒レベル2相当</option>
+              <option value="大雨注意報 警戒レベル2相当|o">大雨注意報 警戒レベル2相当</option>
+            </optgroup>
+            <optgroup label="─ 警戒レベル1（心構え）">
+              <option value="早期注意情報 警戒レベル1|y">早期注意情報 警戒レベル1</option>
+            </optgroup>
+            <optgroup label="─ 特別警報・警報">
+              <option value="大雨特別警報|r">大雨特別警報</option>
+              <option value="暴風特別警報|r">暴風特別警報</option>
+              <option value="大雪特別警報|r">大雪特別警報</option>
+              <option value="暴風雪特別警報|r">暴風雪特別警報</option>
+              <option value="波浪特別警報|r">波浪特別警報</option>
+              <option value="高潮特別警報|r">高潮特別警報</option>
+              <option value="暴風警報|r">暴風警報</option>
+              <option value="大雨警報|r">大雨警報</option>
+              <option value="洪水警報|r">洪水警報</option>
+              <option value="波浪警報|r">波浪警報</option>
+              <option value="大雪警報|r">大雪警報</option>
+              <option value="暴風雪警報|r">暴風雪警報</option>
+              <option value="高潮警報|r">高潮警報</option>
+            </optgroup>
+            <optgroup label="─ 注意報">
+              <option value="大雨注意報|o">大雨注意報</option>
+              <option value="洪水注意報|o">洪水注意報</option>
+              <option value="強風注意報|o">強風注意報</option>
+              <option value="波浪注意報|o">波浪注意報</option>
+              <option value="大雪注意報|o">大雪注意報</option>
+              <option value="高潮注意報|o">高潮注意報</option>
+              <option value="雷注意報|y">雷注意報</option>
+              <option value="濃霧注意報|y">濃霧注意報</option>
+              <option value="乾燥注意報|y">乾燥注意報</option>
+              <option value="なだれ注意報|y">なだれ注意報</option>
+              <option value="低温注意報|y">低温注意報</option>
+            </optgroup>
+            <optgroup label="─ 情報・警戒情報">
+              <option value="土砂災害警戒情報|r">土砂災害警戒情報</option>
+              <option value="土砂災害注意情報|o">土砂災害注意情報</option>
+              <option value="記録的短時間大雨情報|r">記録的短時間大雨情報</option>
+              <option value="竜巻注意情報|o">竜巻注意情報</option>
+              <option value="熱中症警戒アラート|o">熱中症警戒アラート</option>
+              <option value="熱中症特別警戒アラート|r">熱中症特別警戒アラート</option>
+              <option value="津波注意報|o">津波注意報</option>
+              <option value="津波警報|r">津波警報</option>
+              <option value="大津波警報|r">大津波警報</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="list" id="wList"><div class="empty-state">「＋ 追加」で警報・注意報を入力してください</div></div>
+        <div class="illust-section">
+          <div class="illust-header">
+            <span class="sep-label" style="margin-top:8px;display:block;">🎨 イラスト・画像（クリックで選択、複数可）</span>
+            <button class="illust-clear-btn" onclick="clearIllust()">リセット</button>
+          </div>
+          <div class="illust-grid" id="illustGrid">
+            <div class="illust-item" data-name="暴風" onclick="togIllust(this)">🌪️<span>暴風</span></div>
+            <div class="illust-item" data-name="強風" onclick="togIllust(this)">💨<span>強風</span></div>
+            <div class="illust-item" data-name="大雨" onclick="togIllust(this)">🌧️<span>大雨</span></div>
+            <div class="illust-item" data-name="洪水" onclick="togIllust(this)">🌊<span>洪水</span></div>
+            <div class="illust-item" data-name="土砂災害" onclick="togIllust(this)">⛰️<span>土砂</span></div>
+            <div class="illust-item" data-name="大雪" onclick="togIllust(this)">❄️<span>大雪</span></div>
+            <div class="illust-item" data-name="雷" onclick="togIllust(this)">⚡<span>雷</span></div>
+            <div class="illust-item" data-name="竜巻" onclick="togIllust(this)">🌀<span>竜巻</span></div>
+            <div class="illust-item" data-name="津波" onclick="togIllust(this)">🌊<span>津波</span></div>
+            <div class="illust-item" data-name="地震" onclick="togIllust(this)">🏚️<span>地震</span></div>
+            <div class="illust-item" data-name="熱中症" onclick="togIllust(this)">🌡️<span>熱中症</span></div>
+            <div class="illust-item" data-name="避難" onclick="togIllust(this)">🚨<span>避難</span></div>
+            <div class="illust-item" data-name="高潮" onclick="togIllust(this)">🌊<span>高潮</span></div>
+            <div class="illust-item" data-name="濃霧" onclick="togIllust(this)">🌫️<span>濃霧</span></div>
+            <div class="illust-item" data-name="火災" onclick="togIllust(this)">🔥<span>火災</span></div>
+            <div class="illust-item" data-name="注意" onclick="togIllust(this)">⚠️<span>注意</span></div>
+          </div>
+          <label class="upload-label" style="margin-top:8px;display:inline-flex;align-items:center;gap:6px;">
+            📎 画像ファイルを添付
+            <input type="file" id="illustFile" accept="image/*" onchange="handleIllust(this)" style="display:none;">
+          </label>
+          <span id="illustFileName" style="font-size:11px;color:#777;margin-left:6px;"></span>
+          <div id="illustPreview" style="margin-top:8px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="out-card">
+    <div class="out-head">
+      <div class="card-head-left"><div class="dot dot-blue"></div><span class="card-label">X 投稿文生成</span></div>
+      <span class="sel-count" id="selCnt">0件選択中</span>
+    </div>
+    <div class="options-wrap">
+      <div class="sep-label">投稿スタイル</div>
+      <div class="options-row">
+        <button class="opt-btn on" data-tone="official" onclick="setTone(this)">公式速報</button>
+        <button class="opt-btn" data-tone="alert" onclick="setTone(this)">緊急警戒</button>
+        <button class="opt-btn" data-tone="calm" onclick="setTone(this)">冷静詳細</button>
+        <button class="opt-btn" data-tone="advice" onclick="setTone(this)">防災アドバイス</button>
+        <button class="opt-btn" data-tone="thread" onclick="setTone(this)">スレッド形式</button>
+      </div>
+      <div class="sep-label">言語</div>
+      <div class="options-row">
+        <button class="opt-btn on" data-lang="ja" onclick="setLang(this)">日本語</button>
+        <button class="opt-btn" data-lang="en" onclick="setLang(this)">英語</button>
+        <button class="opt-btn" data-lang="both" onclick="setLang(this)">両方</button>
+      </div>
+    </div>
+    <div class="gen-wrap">
+      <button class="gen-btn-main" id="genBtn" onclick="generate()">Claude AI で投稿文を生成</button>
+    </div>
+    <div id="tabsEl" style="display:none;" class="tabs"></div>
+    <div class="out-body" id="outBody"><div class="out-placeholder">データを選択して生成ボタンを押してください</div></div>
+    <div class="out-footer">
+      <div class="char-count" id="charCt">— 文字</div>
+      <div class="footer-btns">
+        <button class="copy-btn" id="copyBtn" onclick="doCopy()">📋 コピー</button>
+        <a class="x-btn" href="#" onclick="openX(event)">𝕏 X で開く</a>
+        <a class="x-account-btn" href="https://x.com/DWAbousai0111" target="_blank" rel="noopener">𝕏 DWAbousai</a>
+      </div>
+    </div>
+  </div>
+  <div class="status-bar"><div class="st-dot" id="stDot"></div><span id="stTxt">待機中</span></div>
+</div>
+<script>
+// ── 状態管理 ──
+const S = {
+  quakes: [],
+  warnMap: new Map(),   // id -> {id, area, kind, sev}
+  warnIdCounter: 0,
+  selQ: new Set(),      // 選択中の地震ID (インデックス文字列)
+  selW: new Set(),      // 選択中の警報ID
+  tone: 'official',
+  lang: 'ja',
+  outs: [],
+  tab: 0,
+  illusts: new Set(),
+  illustFile: null,
+  illustDataUrl: null
+};
+
+// ── ユーティリティ ──
+function $(id){ return document.getElementById(id); }
+function status(msg, type){
+  $('stDot').className = 'st-dot' + (type==='ld' ? ' ld' : type==='er' ? ' er' : '');
+  $('stTxt').textContent = msg;
+}
+function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function pad(n){ return String(n).padStart(2,'0'); }
+function s2t(s){ return ({10:'1',20:'2',30:'3',40:'4',45:'5弱',50:'5強',55:'6弱',60:'6強',70:'7'})[s] || (s>0 ? ''+Math.floor(s/10) : '不明'); }
+function lvCls(s){ return s>=55 ? 'mag-hi' : s>=40 ? 'mag-md' : 'mag-lo'; }
+function updateSelCount(){
+  $('selCnt').textContent = (S.selQ.size + S.selW.size) + '件選択中';
+}
+
+// ── 地震取得 ──
+async function fetchQuakes(){
+  const btn = $('qBtn'), ico = $('qIco');
+  btn.disabled = true; ico.innerHTML = '<span class="spin">↻</span>';
+  status('P2P地震情報API 取得中...', 'ld');
+  try {
+    const r = await fetch('https://api.p2pquake.net/v2/jma/quake?limit=15');
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const raw = await r.json();
+    S.quakes = (Array.isArray(raw) ? raw : [])
+      .filter(it => it?.earthquake?.hypocenter?.name)
+      .map((it, idx) => {
+        const eq = it.earthquake, h = eq.hypocenter;
+        const d = new Date((it.time||'').replace(/\//g,'-').replace(' ','T'));
+        return {
+          idx: String(idx),
+          name: h.name || '不明',
+          mag: h.magnitude >= 0 ? h.magnitude : null,
+          depth: h.depth >= 0 ? h.depth : null,
+          shindo: eq.maxScale > 0 ? eq.maxScale : 0,
+          time: isNaN(d.getTime()) ? '--' : (d.getMonth()+1)+'/'+d.getDate()+' '+pad(d.getHours())+':'+pad(d.getMinutes()),
+          tsunami: eq.domesticTsunami || 'None',
+          apiLat: h.latitude,
+          apiLng: h.longitude
+        };
+      });
+    renderQ();
+    status('地震データ取得完了（' + S.quakes.length + '件）');
+  } catch(e) {
+    status('地震取得失敗: ' + e.message, 'er');
+    $('qList').innerHTML = '<div class="empty-state">取得できませんでした</div>';
+  } finally {
+    btn.disabled = false; ico.textContent = '取得';
+  }
+}
+
+function renderQ(){
+  const el = $('qList');
+  if(!S.quakes.length){ el.innerHTML = '<div class="empty-state">データなし</div>'; return; }
+  el.innerHTML = S.quakes.map(q => `
+    <div class="item${S.selQ.has(q.idx) ? ' sel' : ''}" id="qq${q.idx}" onclick="togQ('${q.idx}')">
+      <div class="item-type">EARTHQUAKE</div>
+      <div class="mag ${lvCls(q.shindo)}">M${q.mag!=null ? q.mag.toFixed(1) : '?'}</div>
+      <div class="item-name">${esc(q.name)}<button class="map-btn" onclick="openMap(event,'${q.idx}')">🗺 地図</button></div>
+      <div class="item-meta">${esc(q.time)} / 深さ${q.depth!=null ? q.depth+'km' : '不明'} / 最大震度${s2t(q.shindo)}${q.tsunami!=='None' ? ' / 🌊津波情報あり' : ''}</div>
+    </div>`).join('');
+}
+
+function togQ(idx){
+  S.selQ.has(idx) ? S.selQ.delete(idx) : S.selQ.add(idx);
+  const el = $('qq'+idx);
+  if(el) el.classList.toggle('sel', S.selQ.has(idx));
+  updateSelCount();
+}
+
+// ── 警報追加・削除・リセット ──
+function addWarning(){
+  const area = $('wArea').value.trim();
+  if(!area){ status('地域名を入力してください', 'er'); return; }
+  const parts = $('wType').value.split('|');
+  const kind = parts[0], sev = parts[1] || 'y';
+  const id = 'w' + (++S.warnIdCounter);
+  S.warnMap.set(id, { id, area, kind, sev });
+  $('wArea').value = '';
+  renderW();
+  status('追加: ' + area + ' ' + kind);
+}
+
+function delWarning(id, event){
+  event.stopPropagation();
+  S.warnMap.delete(id);
+  S.selW.delete(id);
+  renderW();
+  updateSelCount();
+  status('削除しました');
+}
+
+function togW(id){
+  S.selW.has(id) ? S.selW.delete(id) : S.selW.add(id);
+  const el = $(id);
+  if(el) el.classList.toggle('sel', S.selW.has(id));
+  updateSelCount();
+}
+
+function renderW(){
+  const el = $('wList');
+  if(!S.warnMap.size){ el.innerHTML = '<div class="empty-state">「＋ 追加」で警報・注意報を入力してください</div>'; return; }
+  el.innerHTML = [...S.warnMap.values()].map(w => `
+    <div class="item${S.selW.has(w.id) ? ' sel' : ''}" id="${w.id}" onclick="togW('${w.id}')">
+      <button class="del-btn" onclick="delWarning('${w.id}',event)">✕</button>
+      <div class="item-type">${w.sev==='r' ? 'WARNING 警報' : 'ADVISORY 注意報'}</div>
+      <div class="item-name">${esc(w.area)}</div>
+      <div class="badges"><span class="badge badge-${w.sev}">${esc(w.kind)}</span></div>
+    </div>`).join('');
+}
+
+// ── リセット ──
+function resetAll(){
+  S.quakes = [];
+  S.warnMap.clear();
+  S.selQ.clear();
+  S.selW.clear();
+  S.illusts.clear();
+  S.illustFile = null;
+  $('qList').innerHTML = '<div class="empty-state">「取得」を押してください</div>';
+  $('wList').innerHTML = '<div class="empty-state">「＋ 追加」で警報・注意報を入力してください</div>';
+  $('wArea').value = '';
+  $('outBody').innerHTML = '<div class="out-placeholder">データを選択して生成ボタンを押してください</div>';
+  $('charCt').textContent = '— 文字';
+  $('tabsEl').style.display = 'none';
+  document.querySelectorAll('.illust-item').forEach(el => el.classList.remove('on'));
+  const fn = $('illustFileName'); if(fn) fn.textContent = '';
+  const fi = $('illustFile'); if(fi) fi.value = '';
+  const prev = $('illustPreview'); if(prev) prev.innerHTML = '';
+  S.outs = []; S.tab = 0;
+  updateSelCount();
+  status('リセットしました');
+}
+
+// ── イラスト ──
+function togIllust(el){
+  const name = el.dataset.name;
+  S.illusts.has(name) ? S.illusts.delete(name) : S.illusts.add(name);
+  el.classList.toggle('on', S.illusts.has(name));
+}
+function handleIllust(input){
+  if(!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  // ファイルサイズチェック（5MB以上は警告）
+  if(file.size > 5 * 1024 * 1024){
+    status('画像が大きすぎます（5MB以下を推奨）', 'er'); return;
+  }
+  S.illustFile = file;
+  const fn = $('illustFileName');
+  if(fn) fn.textContent = file.name + ' (' + (file.size/1024).toFixed(0) + 'KB)';
+  // FileReaderでbase64変換（file://でも動作する）
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    S.illustDataUrl = ev.target.result;
+    const prev = $('illustPreview');
+    if(prev){
+      prev.innerHTML = '<div style="position:relative;display:inline-block;">' +
+        '<img src="' + ev.target.result + '" style="max-width:100%;max-height:140px;border-radius:8px;border:1px solid #e8e8e5;margin-top:4px;display:block;">' +
+        '<button onclick="removeIllustFile()" style="position:absolute;top:4px;right:4px;font-size:10px;background:rgba(0,0,0,.5);color:#fff;border:none;border-radius:4px;cursor:pointer;padding:1px 5px;">✕</button>' +
+        '</div>';
+    }
+    status('画像を添付しました: ' + file.name);
+  };
+  reader.onerror = function(){ status('画像の読み込みに失敗しました', 'er'); };
+  reader.readAsDataURL(file);
+}
+function removeIllustFile(){
+  S.illustFile = null;
+  S.illustDataUrl = null;
+  const fn = $('illustFileName'); if(fn) fn.textContent = '';
+  const fi = $('illustFile'); if(fi) fi.value = '';
+  const prev = $('illustPreview'); if(prev) prev.innerHTML = '';
+  status('画像を削除しました');
+}
+function clearIllust(){
+  S.illusts.clear();
+  S.illustFile = null;
+  S.illustDataUrl = null;
+  document.querySelectorAll('.illust-item').forEach(el => el.classList.remove('on'));
+  const fn = $('illustFileName'); if(fn) fn.textContent = '';
+  const fi = $('illustFile'); if(fi) fi.value = '';
+  const prev = $('illustPreview'); if(prev) prev.innerHTML = '';
+  status('イラスト選択をリセットしました');
+}
+
+// ── スタイル・言語 ──
+function setTone(b){
+  document.querySelectorAll('[data-tone]').forEach(x => x.classList.remove('on'));
+  b.classList.add('on'); S.tone = b.dataset.tone;
+}
+function setLang(b){
+  document.querySelectorAll('[data-lang]').forEach(x => x.classList.remove('on'));
+  b.classList.add('on'); S.lang = b.dataset.lang;
+}
+
+// ── AI生成 ──
+const TONE = {
+  official: '防災機関の公式アカウントが発信する正確で信頼性の高い速報スタイル。#地震速報 #防災 などのハッシュタグを付ける。',
+  alert:    '緊急感・警戒感を前面に出した強調スタイル。絵文字を効果的に使用し、読み手に即座の行動を促す。',
+  calm:     '冷静で詳細な情報提供スタイル。数値・状況を正確に伝え、専門的かつ読みやすく。',
+  advice:   '防災アドバイス・行動指針を重視。具体的な行動提案を必ず含む。',
+  thread:   'Xのスレッド形式で3投稿に分割。①速報概要 ②詳細情報 ③行動指針+ハッシュタグ。各投稿を空行2つで区切る。',
+};
+
+async function generate(){
+  if(S.selQ.size + S.selW.size === 0){
+    status('データを1件以上選択してください', 'er'); return;
+  }
+  const key = $('apiKey').value.trim();
+  if(!key){ status('APIキーを入力してください', 'er'); return; }
+
+  // ── items組み立て ──
+  const lines = [];
+
+  for(const idx of S.selQ){
+    const q = S.quakes.find(x => x.idx === idx);
+    if(!q) continue;
+    lines.push(
+      '【地震情報】' +
+      '震源地=' + q.name +
+      ' M=' + (q.mag!=null ? q.mag.toFixed(1) : '不明') +
+      ' 深さ=' + (q.depth!=null ? q.depth+'km' : '不明') +
+      ' 最大震度=' + s2t(q.shindo) +
+      ' 時刻=' + q.time +
+      (q.tsunami!=='None' ? ' 津波情報あり' : '')
+    );
+  }
+
+  for(const wid of S.selW){
+    const w = S.warnMap.get(wid);
+    if(!w) continue;
+    lines.push('【気象警報】地域=' + w.area + ' 種別=' + w.kind);
+  }
+
+  if(S.illusts.size > 0){
+    lines.push('【絵文字指定】投稿に含めること: ' + [...S.illusts].join(' '));
+  }
+
+  const infoText = lines.join('\n');
+
+
+  const isThread = S.tone === 'thread';
+  const langP = S.lang==='ja' ? '日本語のみ' : S.lang==='en' ? '英語のみ（280字以内）' : '日本語と英語の両方（---で区切る）';
+
+  const systemPrompt =
+    'あなたはX（旧Twitter）で防災情報を発信する専門アカウントの担当者です。\n' +
+    'スタイル: ' + TONE[S.tone] + '\n' +
+    '言語: ' + langP + '\n' +
+    '文字数: ' + (isThread ? '各投稿140字以内' : '140字以内') + '\n' +
+    '【厳守事項】\n' +
+    '・入力データに「地域=〇〇」とあれば、その地域名を投稿文の冒頭に【〇〇】の形式で必ず記載する。\n' +
+    '・入力データに「震源地=〇〇」とあれば、その地名を投稿文に必ず記載する。\n' +
+    '・入力データに書かれた情報はすべて実際のデータである。架空・不明などと判断してはならない。\n' +
+    '・免責文・注意書き・コメント・謝罪文を一切付けてはならない。\n' +
+    '・投稿文のみを出力する。それ以外は何も出力しない。';
+
+  const userPrompt =
+    '次の防災データを使ってX投稿文を作成してください。\n\n' +
+    '=== 防災データ ===\n' +
+    infoText + '\n' +
+    '=================\n\n' +
+    '※上記データの地域名・地名を必ず投稿文に含めてください。';
+
+  const gb = $('genBtn');
+  gb.disabled = true; gb.textContent = '生成中...';
+  status('Claude AI が生成中...', 'ld');
+  $('tabsEl').style.display = 'none';
+  $('outBody').innerHTML = '<div class="out-text"><span class="cur"></span></div>';
+  $('charCt').textContent = '— 文字';
+
+  let full = '';
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 800,
+        stream: true,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }]
+      })
+    });
+    if(!res.ok){
+      let msg = 'API Error ' + res.status;
+      try{ const e = await res.json(); msg = e?.error?.message || msg; }catch(_){}
+      throw new Error(msg);
+    }
+    const reader = res.body.getReader(), dec = new TextDecoder();
+    let buf = '';
+    while(true){
+      const { done, value } = await reader.read(); if(done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines2 = buf.split('\n'); buf = lines2.pop();
+      for(const line of lines2){
+        if(!line.startsWith('data:')) continue;
+        const raw = line.slice(5).trim(); if(raw === '[DONE]') continue;
+        try{
+          const p = JSON.parse(raw);
+          if(p.type==='content_block_delta' && p.delta?.type==='text_delta' && p.delta.text){
+            full += p.delta.text;
+            document.querySelector('#outBody .out-text').innerHTML = esc(full) + '<span class="cur"></span>';
+          }
+        }catch(_){}
+      }
+    }
+    S.outs = isThread ? full.split(/\n{2,}/).map(s => s.trim()).filter(Boolean) : [full.trim()];
+    S.tab = 0; buildTabs(); showTab(0);
+    status('生成完了');
+  } catch(e) {
+    $('outBody').innerHTML = '<div class="err-msg">' + esc(e.message) + '</div>';
+    status('生成エラー: ' + e.message, 'er');
+  } finally {
+    gb.disabled = false; gb.textContent = 'Claude AI で投稿文を生成';
+  }
+}
+
+// ── タブ・コピー・X投稿 ──
+function buildTabs(){
+  const el = $('tabsEl');
+  if(S.outs.length <= 1){ el.style.display = 'none'; return; }
+  el.style.display = 'flex';
+  el.innerHTML = S.outs.map((_,i) =>
+    `<button class="tab-btn${i===0?' on':''}" data-i="${i}" onclick="clickTab(this)">投稿${i+1}</button>`
+  ).join('');
+}
+function clickTab(b){
+  document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('on'));
+  b.classList.add('on'); S.tab = +b.dataset.i; showTab(S.tab);
+}
+function showTab(i){
+  const t = S.outs[i] || '';
+  $('outBody').innerHTML = '<div class="out-text">' + esc(t) + '</div>';
+  const ct = $('charCt');
+  ct.textContent = t.length + ' 文字';
+  ct.className = 'char-count' + (t.length > 140 ? ' over' : '');
+}
+function doCopy(){
+  const t = S.outs[S.tab] || ''; if(!t) return;
+  navigator.clipboard.writeText(t).then(() => {
+    const b = $('copyBtn'); b.textContent = '✓ コピー済み'; b.classList.add('ok');
+    setTimeout(() => { b.textContent = '📋 コピー'; b.classList.remove('ok'); }, 2000);
+  }).catch(() => {
+    const ta = document.createElement('textarea'); ta.value = t;
+    ta.style.cssText = 'position:fixed;opacity:0;'; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+    status('コピーしました');
+  });
+}
+function openX(e){
+  e.preventDefault();
+  const t = S.outs[S.tab] || ''; if(!t){ status('投稿文がありません', 'er'); return; }
+  window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(t), '_blank');
+}
+
+// Enterキーで追加
+document.addEventListener('DOMContentLoaded', () => {
+  const wa = $('wArea');
+  if(wa) wa.addEventListener('keydown', e => { if(e.key==='Enter') addWarning(); });
+});
+
+
+// ── 地震マップ ──
+const QUAKE_COORDS = {
+  '北海道': [43.06, 141.35],'胆振地方中東部': [42.6, 141.6],'胆振': [42.6, 141.6],
+  '十勝': [43.1, 143.6],'釧路': [43.0, 144.4],'根室': [43.3, 145.6],
+  '網走': [44.0, 144.3],'宗谷': [45.4, 141.7],'石狩': [43.2, 141.3],
+  '後志': [42.9, 140.6],'空知': [43.5, 141.9],'上川': [43.8, 142.6],
+  '青森県': [40.82, 140.74],'青森県東部': [40.9, 141.4],'青森県西部': [40.6, 140.4],
+  '岩手県': [39.7, 141.15],'岩手県沿岸北部': [39.9, 141.8],'岩手県沿岸南部': [39.2, 141.9],
+  '岩手県内陸北部': [40.0, 141.1],'岩手県内陸南部': [39.3, 141.1],
+  '宮城県': [38.27, 140.87],'宮城県北部': [38.7, 141.2],'宮城県南部': [37.9, 140.9],'宮城県中部': [38.4, 141.0],
+  '秋田県': [39.72, 140.1],'秋田県北部': [40.2, 140.5],'秋田県南部': [39.2, 140.5],
+  '山形県': [38.24, 140.36],'山形県北部': [38.7, 140.1],'山形県南部': [37.9, 140.1],'山形県置賜': [37.9, 140.1],'山形県庄内': [38.9, 139.8],
+  '福島県': [37.75, 140.47],'福島県沿岸部': [37.4, 141.0],'福島県中通り': [37.5, 140.5],'福島県会津': [37.5, 139.9],
+  '茨城県': [36.34, 140.45],'茨城県北部': [36.7, 140.7],'茨城県南部': [36.0, 139.9],
+  '栃木県': [36.56, 139.88],'栃木県北部': [36.9, 139.6],'栃木県南部': [36.3, 139.9],
+  '群馬県': [36.39, 139.06],'群馬県北部': [36.7, 139.0],'群馬県南部': [36.2, 139.1],
+  '埼玉県': [35.86, 139.65],'埼玉県北部': [36.2, 139.5],'埼玉県南部': [35.7, 139.5],
+  '千葉県': [35.61, 140.12],'千葉県北東部': [35.8, 140.6],'千葉県北西部': [35.7, 140.0],'千葉県南部': [35.1, 139.9],
+  '東京都': [35.69, 139.69],'東京都23区': [35.69, 139.69],'伊豆諸島': [33.9, 139.4],'小笠原諸島': [27.1, 142.2],
+  '神奈川県': [35.45, 139.64],'神奈川県東部': [35.5, 139.6],'神奈川県西部': [35.4, 139.1],
+  '新潟県': [37.9, 139.02],'新潟県上越': [37.1, 138.2],'新潟県中越': [37.5, 138.9],'新潟県下越': [37.9, 139.1],'新潟県佐渡': [38.0, 138.4],
+  '富山県': [36.7, 137.21],'石川県': [36.59, 136.63],'石川県能登': [37.3, 136.9],'石川県加賀': [36.3, 136.5],
+  '福井県': [36.07, 136.22],'山梨県': [35.66, 138.57],'山梨県東部・富士五湖': [35.5, 138.8],'山梨県中・西部': [35.7, 138.3],
+  '長野県': [36.65, 138.18],'長野県北部': [36.9, 138.1],'長野県中部': [36.5, 138.0],'長野県南部': [35.8, 137.9],
+  '岐阜県': [35.39, 136.72],'岐阜県飛騨': [36.1, 137.3],'岐阜県美濃東部': [35.5, 137.2],'岐阜県美濃中西部': [35.4, 136.7],
+  '静岡県': [34.98, 138.38],'静岡県伊豆': [34.9, 138.9],'静岡県東部': [35.1, 138.6],'静岡県中部': [34.9, 138.3],'静岡県西部': [34.8, 137.8],
+  '愛知県': [35.18, 136.91],'愛知県東部': [35.0, 137.5],'愛知県西部': [35.2, 136.9],
+  '三重県': [34.73, 136.51],'三重県北部': [34.9, 136.5],'三重県南部': [34.0, 136.2],
+  '滋賀県': [35.0, 135.87],'京都府': [35.02, 135.76],'京都府北部': [35.5, 135.4],'京都府南部': [34.8, 135.8],
+  '大阪府': [34.69, 135.5],'兵庫県': [34.69, 135.18],'兵庫県北部': [35.5, 134.8],'兵庫県南東部': [34.7, 135.2],'兵庫県南西部': [34.7, 134.8],
+  '奈良県': [34.69, 135.83],'和歌山県': [34.23, 135.17],'和歌山県北部': [34.3, 135.4],'和歌山県南部': [33.7, 135.4],
+  '鳥取県': [35.5, 134.24],'鳥取県東部': [35.5, 134.2],'鳥取県西部': [35.4, 133.3],
+  '島根県': [35.47, 133.05],'岡山県': [34.66, 133.93],'広島県': [34.4, 132.46],
+  '山口県': [34.19, 131.47],'徳島県': [34.07, 134.56],'香川県': [34.34, 134.05],
+  '愛媛県': [33.84, 132.77],'高知県': [33.56, 133.53],
+  '福岡県': [33.61, 130.42],'佐賀県': [33.25, 130.3],'長崎県': [32.74, 129.87],
+  '熊本県': [32.79, 130.74],'熊本県阿蘇': [32.9, 131.1],
+  '大分県': [33.24, 131.61],'宮崎県': [31.91, 131.42],
+  '鹿児島県': [31.56, 130.56],'種子島・屋久島地方': [30.4, 130.6],'奄美大島近海': [28.4, 129.5],
+  '沖縄本島': [26.2, 127.7],'沖縄本島近海': [26.5, 128.0],'宮古島・石垣島': [24.5, 124.2],
+  '日向灘': [31.5, 131.6],'豊後水道': [33.1, 132.2],'熊野灘': [33.7, 136.5],
+  '駿河湾': [34.8, 138.5],'相模湾': [35.2, 139.4],'東京湾': [35.4, 139.8],
+  '千葉県東方沖': [35.6, 141.0],'茨城県沖': [36.5, 141.0],'福島県沖': [37.2, 141.5],
+  '宮城県沖': [38.2, 141.8],'岩手県沖': [39.5, 142.2],'青森県東方沖': [41.0, 142.5],
+  '北海道東方沖': [43.5, 146.0],'能登半島沖': [37.4, 136.5],'能登半島': [37.3, 136.9],
+  '若狭湾': [35.7, 135.8],'紀伊水道': [34.0, 135.0],'土佐湾': [32.8, 133.5],
+};
+let _leafMap = null, _leafMarker = null;
+function openMap(event, idx){
+  event.stopPropagation();
+  const q = S.quakes.find(x => x.idx === idx);
+  if(!q) return;
+  // テーブルから座標取得（名前を正規化して検索）
+  const name = q.name.trim();
+  let coord = QUAKE_COORDS[name];
+  if(!coord){
+    for(const key of Object.keys(QUAKE_COORDS)){
+      if(name.startsWith(key) || key.startsWith(name)){ coord = QUAKE_COORDS[key]; break; }
+    }
+  }
+  const modal = $('mapModal');
+  $('mapTitle').textContent = '震源地マップ：' + q.name;
+  $('mapInfo').textContent = 'M'+(q.mag!=null?q.mag.toFixed(1):'?')+' ／ 深さ'+(q.depth!=null?q.depth+'km':'不明')+' ／ 最大震度'+s2t(q.shindo)+' ／ '+q.time;
+  if(!coord){
+    $('map').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#888;">⚠️ 座標データなし：'+name+'</div>';
+    modal.classList.add('on');
+    return;
+  }
+  const [lat, lng] = coord;
+  modal.classList.add('on');
+  setTimeout(() => {
+    $('map').innerHTML = '';
+    if(_leafMap){ _leafMap.remove(); _leafMap = null; }
+    _leafMap = L.map('map').setView([lat, lng], 7);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:18}).addTo(_leafMap);
+    L.circleMarker([lat, lng],{radius:10,color:'#E24B4A',fillColor:'#E24B4A',fillOpacity:0.7}).addTo(_leafMap).bindPopup(q.name).openPopup();
+    _leafMap.invalidateSize();
+  }, 100);
+}
+function closeMap(){ $('mapModal').classList.remove('on'); }
+</script>
+</body>
+</html>
